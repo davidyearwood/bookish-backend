@@ -1,0 +1,38 @@
+{
+  "name": "bookish-backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^7.0.0",
+    "express": "^4.16.4",
+    "pg": "^7.10.0"
+  },
+  "devDependencies": {
+    "eslint": "^5.16.0",
+    "husky": "^2.1.0",
+    "jest": "^24.7.1",
+    "lint-staged": ">=8",
+    "prettier": "1.17.0"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "husky": {
+    "pre-commit": "yarn run test",
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{js,css,json,md}": [
+      "prettier --write",
+      "git add"
+    ],
+    "*.js": [
+      "eslint --fix",
+      "jest --findRelatedTests",
+      "git add"
+    ]
+  }
+}
