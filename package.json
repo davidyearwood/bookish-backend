@@ -4,19 +4,26 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
+    "bcrypt": "^3.0.6",
+    "body-parser": "^1.19.0",
+    "csv-parse": "^4.4.1",
+    "csv-parser": "^2.2.0",
     "dotenv": "^7.0.0",
     "express": "^4.16.4",
     "pg": "^7.10.0"
   },
   "devDependencies": {
     "eslint": "^5.16.0",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-plugin-import": "^2.17.2",
     "husky": "^2.1.0",
     "jest": "^24.7.1",
     "lint-staged": ">=8",
     "prettier": "1.17.0"
   },
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "eslint": "eslint"
   },
   "husky": {
     "pre-commit": "yarn run test",
@@ -31,8 +38,7 @@
     ],
     "*.js": [
       "eslint --fix",
-      "jest --findRelatedTests",
-      "git add"
+      "jest --findRelatedTests"
     ]
   }
 }
