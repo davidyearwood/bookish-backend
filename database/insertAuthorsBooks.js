@@ -6,13 +6,13 @@ const pgp = require("pg-promise")({
 
 function authorsBooksInsertQuery(records) {
   const values = records
-    .map(record => {
-      return `('${record.isbn}', (SELECT DISTINCT ${
+    .map(
+      record => `('${record.isbn}', (SELECT DISTINCT ${
         process.env.DB_AUTHOR_TABLE
       }.id
       FROM ${process.env.DB_AUTHOR_TABLE}
-      WHERE ${process.env.DB_AUTHOR_TABLE}.name=${pgp.as.text(record.name)}))`;
-    })
+      WHERE ${process.env.DB_AUTHOR_TABLE}.name=${pgp.as.text(record.name)}))`
+    )
     .join(", ");
   return `INSERT INTO ${
     process.env.DB_AUTHORS_BOOK_TABLE
