@@ -10,18 +10,44 @@ class User {
     this.pool = null;
   }
 
-  save() {
+  async save() {
     if (!this.password || !this.username) {
       throw new Error(
         "Username and password must be set before saving to the db"
       );
     }
-    addUserToDb({ password: this.password, username: this.username });
-    return true;
+    const newUser = await addUserToDb({
+      password: this.password,
+      username: this.username
+    });
+
+    console.log(newUser);
+    return newUser.id;
   }
 
-  async findByUsername(obj) {
-    this.pool = new Pool({
+  static async findById(obj) {
+    const pool = new Pool({
+      connectionString: process.env.DB_URI,
+      ssl: true
+    });
+    const query = {
+      text: `SELECT * FROM ${process.env.DB_USER_TABLE} where id = $1`,
+      values: [obj.id]
+    };
+
+    const client = await pool.connect();
+    try {
+      const response = await client.query(query);
+      return response.rows[0] || null;
+    } catch (e) {
+      throw new Error(`Unable to create hash: ${e}`);
+    } finally {
+      client.release();
+    }
+  }
+
+  static async findByUsername(obj) {
+    const pool = new Pool({
       connectionString: process.env.DB_URI,
       ssl: true
     });
@@ -30,7 +56,7 @@ class User {
       values: [obj.username]
     };
 
-    const client = await this.pool.connect();
+    const client = await pool.connect();
     try {
       const response = await client.query(query);
       return response.rows[0];

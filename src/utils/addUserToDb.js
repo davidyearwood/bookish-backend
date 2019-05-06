@@ -14,24 +14,26 @@ async function addUserToDb(user) {
 
   try {
     const hash = await bcrypt.hash(password, saltRounds);
-    const query = {
-      text: `INSERT INTO ${
-        process.env.DB_USER_TABLE
-      }(username, password, createdOn) VALUES($1, $2, NOW()) RETURNING id;`,
-      values: [username, hash]
-    };
     try {
+      const query = {
+        text: `INSERT INTO ${
+          process.env.DB_USER_TABLE
+        }(username, password, createdOn) 
+        VALUES($1, $2, NOW()) RETURNING id;`,
+        values: [username, hash]
+      };
       record = await client.query(query);
+      return record.rows[0];
     } catch (e) {
-      throw new Error(`Unable to create user: ${e}`);
+      throw new Error("Unable to create user");
     } finally {
       client.release();
     }
   } catch (e) {
-    throw new Error(`Unable to create hash: ${e}`);
+    throw new Error(
+      "User account may be already created. Try a different username"
+    );
   }
-
-  return record[0];
 }
 
 module.exports = addUserToDb;
