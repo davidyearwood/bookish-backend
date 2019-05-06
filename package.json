@@ -38,13 +38,11 @@
     }
   },
   "lint-staged": {
-    "*.{js,css,json,md}": [
+    "*.js": [
+      "jest --findRelatedTests",
+      "eslint --fix",
       "prettier --write",
       "git add"
-    ],
-    "*.js": [
-      "eslint --fix",
-      "jest --findRelatedTests"
     ]
   }
 }
