@@ -13,14 +13,14 @@ async function addUserToDb(user) {
   const client = await pool.connect();
 
   try {
-    const hash = await bcrypt.hash(password, saltRounds);
+    const match = await bcrypt.hash(password, saltRounds);
     try {
       const query = {
         text: `INSERT INTO ${
           process.env.DB_USER_TABLE
         }(username, password, createdOn) 
-        VALUES($1, $2, NOW()) RETURNING id;`,
-        values: [username, hash]
+          VALUES($1, $2, NOW()) RETURNING id;`,
+        values: [username, match]
       };
       record = await client.query(query);
       return record.rows[0];
