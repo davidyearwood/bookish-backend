@@ -16,8 +16,7 @@ async function up() {
     id serial PRIMARY KEY,
     username VARCHAR (50) UNIQUE NOT NULL,
     password VARCHAR (255) NOT NULL,
-    createdOn TIMESTAMPTZ NOT NULL,
-    passwordSalt VARCHAR (100) UNIQUE NOT NULL
+    createdOn TIMESTAMPTZ NOT NULL
   );`;
   const client = await pool.connect();
   try {
