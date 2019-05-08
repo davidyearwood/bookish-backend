@@ -1,9 +1,21 @@
 require("dotenv").config();
 const express = require("express");
-const User = require("./Models/UserAccount");
 const bodyParser = require("body-parser");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
+const User = require("./src/Models/UserAccount");
+const registerUser = require("./src/utils/registerUser");
+const Auth = require("./src/utils/Auth");
+const Book = require("./src/Models/Book");
 
+const BLACKLIST = {};
 const app = express();
+
+app.use((req, res, next) => {
+  res.removeHeader("X-Powered-By");
+  next();
+});
+app.use(cookieParser());
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }));
 
@@ -16,22 +28,117 @@ app.get("/", (req, res) => {
   });
 });
 
-app.post("/users", (req, res) => {
-  let user = new User(req.body.username, req.body.password);
-  try {
-    user.save();
-  } catch (e) {
-    res.json({
-      error: e
+function isBlacklisted(token) {
+  return Object.prototype.hasOwnProperty.call(BLACKLIST, token);
+}
+
+app.get("/books", (req, res) => {
+  const page = req.query.page ? parseInt(req.query.page, 10) : 1;
+
+  if (Number.isNaN(page)) {
+    res.status(400).send({
+      message: "This request is malformed."
     });
+
+    return false;
   }
 
-  res.json({
-    message: "created",
-    statusCode: 201
+  const token = req.cookies.session_id;
+
+  if (isBlacklisted(token)) {
+    res.status(401).send({
+      message: "Wrong or no authentication ID/password provided"
+    });
+    return false;
+  }
+
+  jwt.verify(token, process.env.SECRET_KEY, { algorithms: "HS256 " }, err => {
+    if (err) {
+      console.log(err.stack);
+      res.status(401).send({
+        message: "Wrong or no authentication ID/password provided"
+      });
+      return false;
+    }
+
+    Book.getBooks({ page, limit: 10 }).then(value => {
+      res.status(200).send(value);
+    });
+
+    return true;
   });
+
+  return true;
+});
+
+app.get("/users", (req, res) => {
+  if (Object.prototype.hasOwnProperty.call(BLACKLIST, req.cookies.session_id)) {
+    res.json({
+      message: "Unauthorize to access this page."
+    });
+    return false;
+  }
+  jwt.verify(
+    req.cookies.session_id,
+    process.env.SECRET_KEY,
+    { algorithms: "HS256" },
+    (err, decoded) => {
+      if (err) {
+        console.log(err.stack);
+        return false;
+      }
+      User.findById({ id: decoded.usr }).then(user => {
+        console.log(user);
+        res.json({
+          username: user.username,
+          id: user.id,
+          createdon: user.createdon
+        });
+      });
+
+      return true;
+    }
+  );
+
+  return true;
+});
+
+app.post("/register", registerUser);
+
+app.post("/logout", (req, res) => {
+  Auth.logout(req.cookies.session_id)
+    .then(decoded => {
+      BLACKLIST[decoded.jti] = decoded.usr;
+      res.clearCookie("session_id");
+      res.status(200).send({ message: "Logout succesfully." });
+    })
+    .catch(err => {
+      console.log(err.message);
+      res.status(500).send({ message: "Internal Server Error." });
+    });
+});
+
+app.post("/login", (req, res) => {
+  Auth.login(req.body.username, req.body.password)
+    .then(token => {
+      console.log(token);
+      res.cookie("session_id", token, {
+        secure: true,
+        httpOnly: true,
+        maxAge: 1000 * 60 * 15
+      });
+      res.json({ message: "Welcome to Bookish!" });
+    })
+    .catch(err => {
+      console.log(err.stack);
+      res.status(404).send({
+        message: "Try using different credentials"
+      });
+    });
 });
 
 app.listen(process.env.APP_PORT, () => {
   console.log(`listening on port ${process.env.APP_PORT}`);
 });
+
+// JWT Implementation
