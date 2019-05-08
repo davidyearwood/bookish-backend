@@ -15,10 +15,11 @@ fs.createReadStream(csvFile)
     books.push(book);
   })
   .on("end", async () => {
+    const records = books.splice(0, 2000);
     try {
-      await insertBooks(books);
-      await insertAuthors(books);
-      await insertAuthorsBooks(books);
+      await insertBooks(records);
+      await insertAuthors(records);
+      await insertAuthorsBooks(records);
     } catch (e) {
       console.log(e);
     }
