@@ -3,18 +3,28 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
+const Joi = require("@hapi/joi");
+const sanitizeHtml = require("sanitize-html");
 const User = require("./src/Models/UserAccount");
 const registerUser = require("./src/utils/registerUser");
 const Auth = require("./src/utils/Auth");
 const Book = require("./src/Models/Book");
+const Review = require("./src/Models/Review");
+const isbnSchema = require("./src/Validation/IsbnSchema/isbnSchema");
+const ratingSchema = require("./src/Validation/RatingSchema/ratingSchema");
 
 const BLACKLIST = {};
 const app = express();
+
+function isBlacklisted(token) {
+  return Object.prototype.hasOwnProperty.call(BLACKLIST, token);
+}
 
 app.use((req, res, next) => {
   res.removeHeader("X-Powered-By");
   next();
 });
+
 app.use(cookieParser());
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -28,9 +38,134 @@ app.get("/", (req, res) => {
   });
 });
 
-function isBlacklisted(token) {
-  return Object.prototype.hasOwnProperty.call(BLACKLIST, token);
-}
+app.post("/reviews", (req, res) => {
+  const token = req.cookies.session_id;
+  const { isbn, review, rating } = req.body;
+  const schema = Object.assign({}, ratingSchema, isbnSchema, {
+    review: Joi.string().required()
+  });
+  const { error, value } = Joi.validate(
+    { isbn, review: sanitizeHtml(review), rating },
+    schema,
+    { escapeHtml: true }
+  );
+
+  if (isBlacklisted(token)) {
+    res.status(401).send({
+      message: "Unathorize to post a review"
+    });
+
+    return false;
+  }
+
+  if (error) {
+    console.log(error);
+    res.status(500).send({
+      message: "Internal server error"
+    });
+
+    return false;
+  }
+
+  jwt.verify(
+    token,
+    process.env.SECRET_KEY,
+    { algorithms: "HS256 " },
+    (err, decoded) => {
+      if (err) {
+        res.status(401).send({
+          message: "Wrong or no authentication ID/password provided"
+        });
+        return false;
+      }
+
+      const newReview = new Review({
+        isbn: value.isbn,
+        review: value.review,
+        rating: value.rating,
+        userId: decoded.usr
+      });
+
+      newReview
+        .createReview()
+        .then(createdReview => {
+          res.status(201).send({
+            review: createdReview
+          });
+        })
+        .catch(e => {
+          console.log(e.stack);
+          res.status(500).send({
+            message: e.message
+          });
+        });
+      return true;
+    }
+  );
+
+  return true;
+});
+
+app.get("/reviews", (req, res) => {
+  const { isbn } = req.query;
+  const page = req.query.page ? parseInt(req.query.page, 10) : 1;
+  if (isbn) {
+    const { error } = Joi.validate({ isbn }, isbnSchema);
+
+    if (error) {
+      res.status(500).send({
+        message: "Internal server error"
+      });
+
+      return false;
+    }
+  }
+
+  if (Number.isNaN(page)) {
+    res.status(500).send({
+      message: "Internal server error"
+    });
+
+    return false;
+  }
+
+  Review.getReviews({ page, limit: 20, isbn })
+    .then(reviews => {
+      res.json(reviews);
+    })
+    .catch(err => {
+      console.log(err.stack);
+      res.status(404).send(err);
+    });
+
+  return true;
+});
+
+app.get("/books/:isbn", (req, res) => {
+  const { isbn } = req.params;
+
+  if (isbn) {
+    const { error } = Joi.validate({ isbn }, isbnSchema);
+
+    if (error) {
+      res.status(500).send({
+        message: "Internal server error"
+      });
+
+      return false;
+    }
+  }
+
+  Book.getBook(isbn)
+    .then(book => {
+      res.json(book);
+    })
+    .catch(err => {
+      res.status(404).send({ message: err.message });
+    });
+
+  return true;
+});
 
 app.get("/books", (req, res) => {
   const page = req.query.page ? parseInt(req.query.page, 10) : 1;

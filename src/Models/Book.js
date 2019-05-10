@@ -38,17 +38,18 @@ class Book {
     });
 
     const query = {
-      text: `SELECT authors.name, books.isbn, books.title, books.year
-      FROM books, authors
-      WHERE authors.id IN (select authorId from authorsbooks where isbn = $1)
-      AND books.isbn = $1`,
+      text: `SELECT books.isbn, books.title, books.year, authors.name
+      FROM authorsBooks
+      INNER JOIN books ON authorsBooks.isbn = books.isbn
+      INNER JOIN authors ON authors.id = authorsBooks.authorId
+      WHERE books.isbn = $1;`,
       values: [isbn]
     };
 
     const client = await pool.connect();
 
     try {
-      const response = client.query(query);
+      const response = await client.query(query);
       return response.rows[0];
     } catch (err) {
       throw new Error(err);

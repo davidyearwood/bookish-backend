@@ -51,6 +51,7 @@ class User {
       connectionString: process.env.DB_URI,
       ssl: true
     });
+
     const query = {
       text: `SELECT * FROM ${process.env.DB_USER_TABLE} where username = $1`,
       values: [obj.username]
