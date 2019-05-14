@@ -12,6 +12,7 @@ const Book = require("./src/Models/Book");
 const Review = require("./src/Models/Review");
 const isbnSchema = require("./src/Validation/IsbnSchema/isbnSchema");
 const ratingSchema = require("./src/Validation/RatingSchema/ratingSchema");
+const search = require("./src/Search");
 
 const BLACKLIST = {};
 const app = express();
@@ -32,10 +33,92 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // parse application/json
 app.use(bodyParser.json());
 
-app.get("/", (req, res) => {
-  res.json({
-    message: "welcome"
+app.get("/search", (req, res) => {
+  const token = req.cookies.session_id;
+
+  const limit = 10;
+  const { q } = req.query;
+  let page = parseInt(req.query.page, 10);
+
+  if (!Number.isInteger(page)) {
+    page = 1;
+  }
+
+  if (!q) {
+    res.status(404).send({
+      message: "Empty query value"
+    });
+
+    return false;
+  }
+  jwt.verify(token, process.env.SECRET_KEY, { algorithms: "HS256" }, err => {
+    if (err) {
+      res.status(401).send({
+        message: "Wrong or no authentication ID/password provided"
+      });
+      return false;
+    }
+
+    search({ q, page, limit })
+      .then(results => {
+        if (results.length === 0) {
+          console.log(results);
+          res.status(404).send({
+            message: "No results found"
+          });
+        } else {
+          console.log(results);
+          res.status(200).send({
+            results
+          });
+        }
+      })
+      .catch(e => {
+        console.log(e);
+        res.status(404).send({
+          message: err.message
+        });
+      });
+
+    return true;
   });
+
+  return true;
+});
+
+app.get("/reviews", (req, res) => {
+  const { isbn } = req.query;
+  const page = req.query.page ? parseInt(req.query.page, 10) : 1;
+  if (isbn) {
+    const { error } = Joi.validate({ isbn }, isbnSchema);
+
+    if (error) {
+      res.status(500).send({
+        message: "Internal server error"
+      });
+
+      return false;
+    }
+  }
+
+  if (Number.isNaN(page)) {
+    res.status(500).send({
+      message: "Internal server error"
+    });
+
+    return false;
+  }
+
+  Review.getReviews({ page, limit: 4, isbn })
+    .then(reviews => {
+      res.json(reviews);
+    })
+    .catch(err => {
+      console.log(err.stack);
+      res.status(404).send({ message: "Reviews not found" });
+    });
+
+  return true;
 });
 
 app.post("/reviews", (req, res) => {
@@ -93,50 +176,14 @@ app.post("/reviews", (req, res) => {
             review: createdReview
           });
         })
-        .catch(e => {
-          console.log(e.stack);
+        .catch(() => {
           res.status(500).send({
-            message: e.message
+            message: "Internal server error"
           });
         });
       return true;
     }
   );
-
-  return true;
-});
-
-app.get("/reviews", (req, res) => {
-  const { isbn } = req.query;
-  const page = req.query.page ? parseInt(req.query.page, 10) : 1;
-  if (isbn) {
-    const { error } = Joi.validate({ isbn }, isbnSchema);
-
-    if (error) {
-      res.status(500).send({
-        message: "Internal server error"
-      });
-
-      return false;
-    }
-  }
-
-  if (Number.isNaN(page)) {
-    res.status(500).send({
-      message: "Internal server error"
-    });
-
-    return false;
-  }
-
-  Review.getReviews({ page, limit: 20, isbn })
-    .then(reviews => {
-      res.json(reviews);
-    })
-    .catch(err => {
-      console.log(err.stack);
-      res.status(404).send(err);
-    });
 
   return true;
 });
@@ -160,8 +207,8 @@ app.get("/books/:isbn", (req, res) => {
     .then(book => {
       res.json(book);
     })
-    .catch(err => {
-      res.status(404).send({ message: err.message });
+    .catch(() => {
+      res.status(404).send({ message: "Book not found" });
     });
 
   return true;
@@ -169,6 +216,7 @@ app.get("/books/:isbn", (req, res) => {
 
 app.get("/books", (req, res) => {
   const page = req.query.page ? parseInt(req.query.page, 10) : 1;
+  const token = req.cookies.session_id;
 
   if (Number.isNaN(page)) {
     res.status(400).send({
@@ -177,9 +225,6 @@ app.get("/books", (req, res) => {
 
     return false;
   }
-
-  const token = req.cookies.session_id;
-
   if (isBlacklisted(token)) {
     res.status(401).send({
       message: "Wrong or no authentication ID/password provided"
@@ -266,8 +311,8 @@ app.post("/login", (req, res) => {
     })
     .catch(err => {
       console.log(err.stack);
-      res.status(404).send({
-        message: "Try using different credentials"
+      res.status(500).send({
+        message: "Unable to login"
       });
     });
 });

@@ -27,6 +27,7 @@ class Review {
       const response = await client.query(query);
       return response.rows[0];
     } catch (err) {
+      console.log(err.message);
       throw new Error(err);
     } finally {
       client.release();
