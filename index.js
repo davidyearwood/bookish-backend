@@ -4,7 +4,7 @@ const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const Joi = require("@hapi/joi");
-const sanitizeHtml = require("sanitize-html");
+const esapi = require("node-esapi");
 const User = require("./src/Models/UserAccount");
 const registerUser = require("./src/utils/registerUser");
 const Auth = require("./src/utils/Auth");
@@ -51,6 +51,7 @@ app.get("/search", (req, res) => {
 
     return false;
   }
+
   jwt.verify(token, process.env.SECRET_KEY, { algorithms: "HS256" }, err => {
     if (err) {
       res.status(401).send({
@@ -76,7 +77,7 @@ app.get("/search", (req, res) => {
       .catch(e => {
         console.log(e);
         res.status(404).send({
-          message: err.message
+          message: "Unable to find requested book(s)"
         });
       });
 
@@ -89,6 +90,7 @@ app.get("/search", (req, res) => {
 app.get("/reviews", (req, res) => {
   const { isbn } = req.query;
   const page = req.query.page ? parseInt(req.query.page, 10) : 1;
+
   if (isbn) {
     const { error } = Joi.validate({ isbn }, isbnSchema);
 
@@ -128,7 +130,7 @@ app.post("/reviews", (req, res) => {
     review: Joi.string().required()
   });
   const { error, value } = Joi.validate(
-    { isbn, review: sanitizeHtml(review), rating },
+    { isbn, review: esapi.encoder().encodeForHTML(review), rating },
     schema,
     { escapeHtml: true }
   );
