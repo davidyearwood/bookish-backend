@@ -69,7 +69,8 @@ app.get("/search", (req, res) => {
           });
         }
       })
-      .catch(() => {
+      .catch(e => {
+        console.log(e);
         res.status(404).send({
           message: "Unable to find requested book(s)"
         });

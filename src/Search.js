@@ -15,25 +15,25 @@ async function search({ q, page, limit }) {
 
   // ISBN number of a book, the title of a book, or the author of a book
   const query = {
-    text: `SELECT ${process.env.DB_BOOK_TABLE}.isbn, ${
-      process.env.DB_BOOK_TABLE
-    }.title, ${process.env.DB_AUTHOR_TABLE}.name as author, ${
-      process.env.DB_BOOK_TABLE
-    }.year, AVG(${process.env.DB_REVIEW_TABLE}.rating)
+    text: `SELECT 
+    ${process.env.DB_BOOK_TABLE}.isbn, 
+    ${process.env.DB_BOOK_TABLE}.title, 
+    ${process.env.DB_AUTHOR_TABLE}.name as author, 
+    ${process.env.DB_BOOK_TABLE}.year,
+    ${process.env.DB_BOOK_TABLE}.avgrating
     FROM ${process.env.DB_AUTHORS_BOOK_TABLE}
-    INNER JOIN ${process.env.DB_BOOK_TABLE} ON ${
-      process.env.DB_AUTHORS_BOOK_TABLE
-    }.isbn = ${process.env.DB_BOOK_TABLE}.isbn
-    INNER JOIN ${process.env.DB_AUTHOR_TABLE} ON ${
-      process.env.DB_AUTHORS_BOOK_TABLE
-    }.authorId = ${process.env.DB_AUTHOR_TABLE}.id
-    WHERE to_tsvector('english', coalesce(${
+    INNER JOIN ${process.env.DB_BOOK_TABLE} ON 
+    ${process.env.DB_AUTHORS_BOOK_TABLE}.isbn = ${
       process.env.DB_BOOK_TABLE
-    }.title) || ' ' || coalesce(${
-      process.env.DB_BOOK_TABLE
-    }.isbn) || ' ' || coalesce(${
+    }.isbn
+    INNER JOIN ${process.env.DB_AUTHOR_TABLE} ON 
+    ${process.env.DB_AUTHORS_BOOK_TABLE}.authorId = ${
       process.env.DB_AUTHOR_TABLE
-    }.name)) @@ to_tsquery('english', $1)
+    }.id
+    WHERE to_tsvector('english', coalesce(${process.env.DB_BOOK_TABLE}.title) 
+    || ' ' || coalesce(${process.env.DB_BOOK_TABLE}.isbn) 
+    || ' ' || coalesce(${process.env.DB_AUTHOR_TABLE}.name)) 
+    @@ to_tsquery('english', $1)
     LIMIT $2 OFFSET $3;`,
     values: [q, limit, offset]
   };
