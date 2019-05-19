@@ -5,6 +5,7 @@ const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const Joi = require("@hapi/joi");
 const esapi = require("node-esapi");
+const helmet = require("helmet");
 const User = require("./src/Models/UserAccount");
 const registerUser = require("./src/utils/registerUser");
 const Auth = require("./src/utils/Auth");
@@ -21,11 +22,7 @@ function isBlacklisted(token) {
   return Object.prototype.hasOwnProperty.call(BLACKLIST, token);
 }
 
-app.use((req, res, next) => {
-  res.removeHeader("X-Powered-By");
-  next();
-});
-
+app.use(helmet());
 app.use(cookieParser());
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -63,19 +60,16 @@ app.get("/search", (req, res) => {
     search({ q, page, limit })
       .then(results => {
         if (results.length === 0) {
-          console.log(results);
           res.status(404).send({
             message: "No results found"
           });
         } else {
-          console.log(results);
           res.status(200).send({
             results
           });
         }
       })
-      .catch(e => {
-        console.log(e);
+      .catch(() => {
         res.status(404).send({
           message: "Unable to find requested book(s)"
         });
@@ -115,8 +109,7 @@ app.get("/reviews", (req, res) => {
     .then(reviews => {
       res.json(reviews);
     })
-    .catch(err => {
-      console.log(err.stack);
+    .catch(() => {
       res.status(404).send({ message: "Reviews not found" });
     });
 
@@ -144,7 +137,6 @@ app.post("/reviews", (req, res) => {
   }
 
   if (error) {
-    console.log(error);
     res.status(500).send({
       message: "Internal server error"
     });
@@ -236,7 +228,6 @@ app.get("/books", (req, res) => {
 
   jwt.verify(token, process.env.SECRET_KEY, { algorithms: "HS256 " }, err => {
     if (err) {
-      console.log(err.stack);
       res.status(401).send({
         message: "Wrong or no authentication ID/password provided"
       });
@@ -266,11 +257,9 @@ app.get("/users", (req, res) => {
     { algorithms: "HS256" },
     (err, decoded) => {
       if (err) {
-        console.log(err.stack);
         return false;
       }
       User.findById({ id: decoded.usr }).then(user => {
-        console.log(user);
         res.json({
           username: user.username,
           id: user.id,
@@ -294,8 +283,7 @@ app.post("/logout", (req, res) => {
       res.clearCookie("session_id");
       res.status(200).send({ message: "Logout succesfully." });
     })
-    .catch(err => {
-      console.log(err.message);
+    .catch(() => {
       res.status(500).send({ message: "Internal Server Error." });
     });
 });
@@ -303,7 +291,6 @@ app.post("/logout", (req, res) => {
 app.post("/login", (req, res) => {
   Auth.login(req.body.username, req.body.password)
     .then(token => {
-      console.log(token);
       res.cookie("session_id", token, {
         secure: true,
         httpOnly: true,
@@ -311,8 +298,7 @@ app.post("/login", (req, res) => {
       });
       res.json({ message: "Welcome to Bookish!" });
     })
-    .catch(err => {
-      console.log(err.stack);
+    .catch(() => {
       res.status(500).send({
         message: "Unable to login"
       });
