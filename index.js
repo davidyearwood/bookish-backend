@@ -120,22 +120,16 @@ app.get("/reviews", (req, res) => {
 app.post("/reviews", (req, res) => {
   const token = req.cookies.session_id;
   const { isbn, review, rating } = req.body;
+
   const schema = Object.assign({}, ratingSchema, isbnSchema, {
     review: Joi.string().required()
   });
+
   const { error, value } = Joi.validate(
     { isbn, review: esapi.encoder().encodeForHTML(review), rating },
     schema,
     { escapeHtml: true }
   );
-
-  if (isBlacklisted(token)) {
-    res.status(401).send({
-      message: "Unathorize to post a review"
-    });
-
-    return false;
-  }
 
   if (error) {
     res.status(500).send({
@@ -154,6 +148,14 @@ app.post("/reviews", (req, res) => {
         res.status(401).send({
           message: "Wrong or no authentication ID/password provided"
         });
+        return false;
+      }
+
+      if (isBlacklisted(decoded.jti)) {
+        res.status(401).send({
+          message: "Unathorize to post a review"
+        });
+
         return false;
       }
 
@@ -220,44 +222,50 @@ app.get("/books", (req, res) => {
 
     return false;
   }
-  if (isBlacklisted(token)) {
-    res.status(401).send({
-      message: "Wrong or no authentication ID/password provided"
-    });
-    return false;
-  }
 
-  jwt.verify(token, process.env.SECRET_KEY, { algorithms: "HS256 " }, err => {
-    if (err) {
-      res.status(401).send({
-        message: "Wrong or no authentication ID/password provided"
+  jwt.verify(
+    token,
+    process.env.SECRET_KEY,
+    { algorithms: "HS256 " },
+    (err, decoded) => {
+      if (err) {
+        res.status(401).send({
+          message: "Wrong or no authentication ID/password provided"
+        });
+        return false;
+      }
+
+      if (isBlacklisted(decoded.jti)) {
+        res.status(401).send({
+          message: "Wrong or no authentication ID/password provided"
+        });
+        return false;
+      }
+
+      Book.getBooks({ page, limit: 10 }).then(value => {
+        res.status(200).send(value);
       });
-      return false;
+
+      return true;
     }
-
-    Book.getBooks({ page, limit: 10 }).then(value => {
-      res.status(200).send(value);
-    });
-
-    return true;
-  });
+  );
 
   return true;
 });
 
 app.get("/users", (req, res) => {
-  if (Object.prototype.hasOwnProperty.call(BLACKLIST, req.cookies.session_id)) {
-    res.json({
-      message: "Unauthorize to access this page."
-    });
-    return false;
-  }
   jwt.verify(
     req.cookies.session_id,
     process.env.SECRET_KEY,
     { algorithms: "HS256" },
     (err, decoded) => {
       if (err) {
+        return false;
+      }
+      if (isBlacklisted(decoded.jti)) {
+        res.json({
+          message: "Unauthorize to access this page."
+        });
         return false;
       }
       User.findById({ id: decoded.usr }).then(user => {
