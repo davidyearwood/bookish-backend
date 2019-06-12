@@ -18,7 +18,7 @@ const search = require("./src/Search");
 const BLACKLIST = {};
 const app = express();
 
-function isBlacklisted(token) {
+function isBlacklisted(blacklist, token) {
   return Object.prototype.hasOwnProperty.call(BLACKLIST, token);
 }
 
@@ -43,41 +43,53 @@ app.get("/search", (req, res) => {
 
   if (!q) {
     res.status(404).send({
-      message: "Empty query value"
+      message: "Empty query value",
     });
 
     return false;
   }
 
-  jwt.verify(token, process.env.SECRET_KEY, { algorithms: "HS256" }, err => {
-    if (err) {
-      res.status(401).send({
-        message: "Wrong or no authentication ID/password provided"
-      });
-      return false;
-    }
-
-    search({ q, page, limit })
-      .then(results => {
-        if (results.length === 0) {
-          res.status(404).send({
-            message: "No results found"
-          });
-        } else {
-          res.status(200).send({
-            results
-          });
-        }
-      })
-      .catch(e => {
-        console.log(e);
-        res.status(404).send({
-          message: "Unable to find requested book(s)"
+  jwt.verify(
+    token,
+    process.env.SECRET_KEY,
+    { algorithms: ["HS256"] },
+    (err, decoded) => {
+      if (err) {
+        res.status(401).send({
+          message: "Wrong or no authentication ID/password provided",
         });
-      });
+        return false;
+      }
 
-    return true;
-  });
+      if (isBlacklisted(decoded.jti)) {
+        res.status(401).send({
+          message: "Wrong or no authentication ID/password provided",
+        });
+        return false;
+      }
+
+      search({ q, page, limit })
+        .then((results) => {
+          if (results.length === 0) {
+            res.status(404).send({
+              message: "No results found",
+            });
+          } else {
+            res.status(200).send({
+              results,
+            });
+          }
+        })
+        .catch((e) => {
+          console.log(e);
+          res.status(404).send({
+            message: "Unable to find requested book(s)",
+          });
+        });
+
+      return true;
+    },
+  );
 
   return true;
 });
@@ -91,7 +103,7 @@ app.get("/reviews", (req, res) => {
 
     if (error) {
       res.status(500).send({
-        message: "Internal server error"
+        message: "Internal server error",
       });
 
       return false;
@@ -100,14 +112,14 @@ app.get("/reviews", (req, res) => {
 
   if (Number.isNaN(page)) {
     res.status(500).send({
-      message: "Internal server error"
+      message: "Internal server error",
     });
 
     return false;
   }
 
   Review.getReviews({ page, limit: 4, isbn })
-    .then(reviews => {
+    .then((reviews) => {
       res.json(reviews);
     })
     .catch(() => {
@@ -122,18 +134,18 @@ app.post("/reviews", (req, res) => {
   const { isbn, review, rating } = req.body;
 
   const schema = Object.assign({}, ratingSchema, isbnSchema, {
-    review: Joi.string().required()
+    review: Joi.string().required(),
   });
 
   const { error, value } = Joi.validate(
     { isbn, review: esapi.encoder().encodeForHTML(review), rating },
     schema,
-    { escapeHtml: true }
+    { escapeHtml: true },
   );
 
   if (error) {
     res.status(500).send({
-      message: "Internal server error"
+      message: "Internal server error",
     });
 
     return false;
@@ -146,14 +158,14 @@ app.post("/reviews", (req, res) => {
     (err, decoded) => {
       if (err) {
         res.status(401).send({
-          message: "Wrong or no authentication ID/password provided"
+          message: "Wrong or no authentication ID/password provided",
         });
         return false;
       }
 
       if (isBlacklisted(decoded.jti)) {
         res.status(401).send({
-          message: "Unathorize to post a review"
+          message: "Unathorize to post a review",
         });
 
         return false;
@@ -163,23 +175,23 @@ app.post("/reviews", (req, res) => {
         isbn: value.isbn,
         review: value.review,
         rating: value.rating,
-        userId: decoded.usr
+        userId: decoded.usr,
       });
 
       newReview
         .createReview()
-        .then(createdReview => {
+        .then((createdReview) => {
           res.status(201).send({
-            review: createdReview
+            review: createdReview,
           });
         })
         .catch(() => {
           res.status(500).send({
-            message: "Internal server error"
+            message: "Internal server error",
           });
         });
       return true;
-    }
+    },
   );
 
   return true;
@@ -190,7 +202,7 @@ app.get("/api/:isbn", (req, res) => {
 
   if (typeof isbn === "undefined") {
     res.status(500).send({
-      message: "Internal Server Error"
+      message: "Internal Server Error",
     });
 
     return false;
@@ -200,21 +212,21 @@ app.get("/api/:isbn", (req, res) => {
 
   if (error) {
     res.status(500).send({
-      message: "Internal server error"
+      message: "Internal server error",
     });
 
     return false;
   }
 
   Book.getBook(isbn)
-    .then(book => {
+    .then((book) => {
       res.json({
         title: book.title,
         author: book.name,
         year: book.year,
         isbn: book.isbn,
         review_count: book.review_count,
-        average_score: book.average_score
+        average_score: book.average_score,
       });
     })
     .catch(() => {
@@ -232,7 +244,7 @@ app.get("/books/:isbn", (req, res) => {
 
     if (error) {
       res.status(500).send({
-        message: "Internal server error"
+        message: "Internal server error",
       });
 
       return false;
@@ -240,7 +252,7 @@ app.get("/books/:isbn", (req, res) => {
   }
 
   Book.getBook(isbn)
-    .then(book => {
+    .then((book) => {
       res.json(book);
     })
     .catch(() => {
@@ -256,7 +268,7 @@ app.get("/books", (req, res) => {
 
   if (Number.isNaN(page)) {
     res.status(400).send({
-      message: "This request is malformed."
+      message: "This request is malformed.",
     });
 
     return false;
@@ -269,24 +281,24 @@ app.get("/books", (req, res) => {
     (err, decoded) => {
       if (err) {
         res.status(401).send({
-          message: "Wrong or no authentication ID/password provided"
+          message: "Wrong or no authentication ID/password provided",
         });
         return false;
       }
 
       if (isBlacklisted(decoded.jti)) {
         res.status(401).send({
-          message: "Wrong or no authentication ID/password provided"
+          message: "Wrong or no authentication ID/password provided",
         });
         return false;
       }
 
-      Book.getBooks({ page, limit: 10 }).then(value => {
+      Book.getBooks({ page, limit: 10 }).then((value) => {
         res.status(200).send(value);
       });
 
       return true;
-    }
+    },
   );
 
   return true;
@@ -303,20 +315,20 @@ app.get("/users", (req, res) => {
       }
       if (isBlacklisted(decoded.jti)) {
         res.json({
-          message: "Unauthorize to access this page."
+          message: "Unauthorize to access this page.",
         });
         return false;
       }
-      User.findById({ id: decoded.usr }).then(user => {
+      User.findById({ id: decoded.usr }).then((user) => {
         res.json({
           username: user.username,
           id: user.id,
-          createdon: user.createdon
+          createdon: user.createdon,
         });
       });
 
       return true;
-    }
+    },
   );
 
   return true;
@@ -326,7 +338,7 @@ app.post("/register", registerUser);
 
 app.post("/logout", (req, res) => {
   Auth.logout(req.cookies.session_id)
-    .then(decoded => {
+    .then((decoded) => {
       BLACKLIST[decoded.jti] = decoded.usr;
       res.clearCookie("session_id");
       res.status(200).send({ message: "Logout succesfully." });
@@ -338,17 +350,17 @@ app.post("/logout", (req, res) => {
 
 app.post("/login", (req, res) => {
   Auth.login(req.body.username, req.body.password)
-    .then(token => {
+    .then((token) => {
       res.cookie("session_id", token, {
         secure: true,
         httpOnly: true,
-        maxAge: 1000 * 60 * 15
+        maxAge: 1000 * 60 * 15,
       });
       res.json({ message: "Welcome to Bookish!" });
     })
     .catch(() => {
       res.status(500).send({
-        message: "Unable to login"
+        message: "Unable to login",
       });
     });
 });
