@@ -15,7 +15,9 @@ class Book {
     });
 
     const query = {
-      text: `SELECT books.title, authors.name as author, books.year, books.isbn
+      text: `SELECT books.title, authors.name as author, 
+      books.year, books.isbn, books.avgrating as average_score, 
+      books.totalReviews as review_count
     FROM authorsBooks
     INNER JOIN books ON authorsBooks.isbn = books.isbn
     INNER JOIN authors ON authorsBooks.authorId = authors.id
@@ -70,7 +72,8 @@ class Book {
     });
 
     const query = {
-      text: `SELECT books.isbn, books.title, books.year, authors.name
+      text: `SELECT books.isbn, books.title, books.year, authors.name, 
+      books.avgrating as average_score, books.totalReviews as review_count
       FROM authorsBooks
       INNER JOIN books ON authorsBooks.isbn = books.isbn
       INNER JOIN authors ON authors.id = authorsBooks.authorId

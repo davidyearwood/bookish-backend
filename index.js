@@ -185,6 +185,45 @@ app.post("/reviews", (req, res) => {
   return true;
 });
 
+app.get("/api/:isbn", (req, res) => {
+  const { isbn } = req.params;
+
+  if (typeof isbn === "undefined") {
+    res.status(500).send({
+      message: "Internal Server Error"
+    });
+
+    return false;
+  }
+
+  const { error } = Joi.validate({ isbn }, isbnSchema);
+
+  if (error) {
+    res.status(500).send({
+      message: "Internal server error"
+    });
+
+    return false;
+  }
+
+  Book.getBook(isbn)
+    .then(book => {
+      res.json({
+        title: book.title,
+        author: book.name,
+        year: book.year,
+        isbn: book.isbn,
+        review_count: book.review_count,
+        average_score: book.average_score
+      });
+    })
+    .catch(() => {
+      res.status(404).send({ message: "Book not found" });
+    });
+
+  return null;
+});
+
 app.get("/books/:isbn", (req, res) => {
   const { isbn } = req.params;
 
