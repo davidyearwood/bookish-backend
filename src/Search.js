@@ -33,7 +33,7 @@ async function search({ q, page, limit }) {
     WHERE to_tsvector('english', coalesce(${process.env.DB_BOOK_TABLE}.title) 
     || ' ' || coalesce(${process.env.DB_BOOK_TABLE}.isbn) 
     || ' ' || coalesce(${process.env.DB_AUTHOR_TABLE}.name)) 
-    @@ to_tsquery('english', $1)
+    @@ plainto_tsquery('english', $1)
     LIMIT $2 OFFSET $3;`,
     values: [q, limit, offset]
   };
